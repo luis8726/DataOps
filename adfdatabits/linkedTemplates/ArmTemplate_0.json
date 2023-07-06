@@ -1,0 +1,1928 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "adfdatabits"
+		},
+		"AzureDataLakeStorage1_accountKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accountKey' of 'AzureDataLakeStorage1'"
+		},
+		"AzureDatabricks1_accessToken": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accessToken' of 'AzureDatabricks1'"
+		},
+		"AzureDataLakeStorage1_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://dldatabits.dfs.core.windows.net/"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureDataLakeStorage1')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('AzureDataLakeStorage1_properties_typeProperties_url')]",
+					"accountKey": {
+						"type": "SecureString",
+						"value": "[parameters('AzureDataLakeStorage1_accountKey')]"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureDatabricks1')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureDatabricks",
+				"typeProperties": {
+					"domain": "https://adb-5261374389153010.10.azuredatabricks.net/?o=5261374389153010#",
+					"accessToken": {
+						"type": "SecureString",
+						"value": "[parameters('AzureDatabricks1_accessToken')]"
+					},
+					"newClusterNodeType": "Standard_DS3_v2",
+					"newClusterNumOfWorker": "1",
+					"newClusterSparkEnvVars": {
+						"PYSPARK_PYTHON": "/databricks/python3/bin/python3"
+					},
+					"newClusterVersion": "11.3.x-scala2.12",
+					"clusterOption": "Fixed",
+					"newClusterInitScripts": []
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/db-plata-oro')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Databricks Plata a Oro",
+						"type": "DatabricksNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Users/lujimene@emeal.nttdata.com/ETL con Databricks"
+						},
+						"linkedServiceName": {
+							"referenceName": "AzureDatabricks1",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "5.ETL"
+				},
+				"annotations": [],
+				"lastPublishTime": "2023-05-04T22:31:26Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureDatabricks1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/car_parquet')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureDataLakeStorage1",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Parquet",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "plata",
+						"fileSystem": "dldatabits"
+					},
+					"compressionCodec": "snappy"
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureDataLakeStorage1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/cars')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureDataLakeStorage1",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "cars.csv",
+						"folderPath": "bronce",
+						"fileSystem": "dldatabits"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureDataLakeStorage1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/1-dataflow Joins')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sourceProducto"
+						},
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sourceCategorias"
+						}
+					],
+					"sinks": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sinkInnerJoin"
+						},
+						{
+							"name": "sinkLeftJoin"
+						}
+					],
+					"transformations": [
+						{
+							"name": "joinInner"
+						},
+						{
+							"name": "joinlef"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          ProductoId as short,",
+						"          NombreProducto as string,",
+						"          ProductoSubCategoriaId as short,",
+						"          Descripcion as string,",
+						"          Categoria as string,",
+						"          Color as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'excel',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'ensayos/ljimenez/Join',",
+						"     fileName: 'Producto.xlsx',",
+						"     sheetName: 'Producto',",
+						"     firstRowAsHeader: true) ~> sourceProducto",
+						"source(output(",
+						"          SubCategoriaProductoId as short,",
+						"          NombreSubCategoria as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'excel',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'ensayos/ljimenez/Join',",
+						"     fileName: 'SubCategoriaProducto.xlsx',",
+						"     sheetName: 'SubCategoriaProducto',",
+						"     firstRowAsHeader: true) ~> sourceCategorias",
+						"sourceProducto, sourceCategorias join(ProductoSubCategoriaId == SubCategoriaProductoId,",
+						"     joinType:'inner',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joinInner",
+						"sourceProducto, sourceCategorias join(ProductoSubCategoriaId == SubCategoriaProductoId,",
+						"     joinType:'left',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joinlef",
+						"joinInner sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'delimited',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'ensayos/ljimenez/Join',",
+						"     columnDelimiter: ',',",
+						"     escapeChar: '\\\\',",
+						"     quoteChar: '\\\"',",
+						"     columnNamesAsHeader: true,",
+						"     partitionFileNames:['inerJoin'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> sinkInnerJoin",
+						"joinlef sink(validateSchema: false,",
+						"     partitionFileNames:['Left Join'],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     store: 'cache',",
+						"     format: 'inline',",
+						"     output: false,",
+						"     saveOrder: 1,",
+						"     partitionBy('hash', 1)) ~> sinkLeftJoin"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureDataLakeStorage1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/2-dataflow Exits')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sourceClientes"
+						},
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sourceServicios"
+						}
+					],
+					"sinks": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sinkExits"
+						}
+					],
+					"transformations": [
+						{
+							"name": "exists1"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          CodCliente as short,",
+						"          Cliente as string,",
+						"          ApePatern as string,",
+						"          FechaNaci as string,",
+						"          DNI as integer,",
+						"          IdServicio as short",
+						"     ),",
+						"     useSchema: false,",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'delimited',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'ensayos/ljimenez/2.Exits',",
+						"     fileName: 'Cliente.csv',",
+						"     columnDelimiter: ',',",
+						"     escapeChar: '\\\\',",
+						"     quoteChar: '\\\"',",
+						"     columnNamesAsHeader: true) ~> sourceClientes",
+						"source(output(",
+						"          IdServicio as short,",
+						"          Servicio as string,",
+						"          Fecha as date,",
+						"          MontoPagar as short",
+						"     ),",
+						"     useSchema: false,",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'delimited',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'ensayos/ljimenez/2.Exits',",
+						"     fileName: 'Servicios.csv',",
+						"     columnDelimiter: ',',",
+						"     escapeChar: '\\\\',",
+						"     quoteChar: '\\\"',",
+						"     columnNamesAsHeader: true) ~> sourceServicios",
+						"sourceClientes, sourceServicios exists(sourceClientes@IdServicio == sourceServicios@IdServicio,",
+						"     negate:false,",
+						"     broadcast: 'auto')~> exists1",
+						"exists1 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'delimited',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'ensayos/ljimenez/2.Exits',",
+						"     columnDelimiter: ',',",
+						"     escapeChar: '\\\\',",
+						"     quoteChar: '\\\"',",
+						"     columnNamesAsHeader: true,",
+						"     partitionFileNames:['Exits'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> sinkExits"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureDataLakeStorage1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/3-dataflow Union')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sourceMovie1"
+						},
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sourceMovie2"
+						},
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sourceMovie3"
+						}
+					],
+					"sinks": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sinkMoviesUnios"
+						}
+					],
+					"transformations": [
+						{
+							"name": "union1"
+						},
+						{
+							"name": "union2"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          imdb_title_id as string,",
+						"          title as string,",
+						"          year as string,",
+						"          date_published as string,",
+						"          genre as string,",
+						"          duration as string,",
+						"          country as string",
+						"     ),",
+						"     useSchema: false,",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'delimited',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'ensayos/ljimenez/3.Union',",
+						"     fileName: 'DataSetMovie1.csv',",
+						"     columnDelimiter: ',',",
+						"     escapeChar: '\\\\',",
+						"     quoteChar: '\\\"',",
+						"     columnNamesAsHeader: true) ~> sourceMovie1",
+						"source(output(",
+						"          {_col0_} as string,",
+						"          {_col1_} as string,",
+						"          {_col2_} as string,",
+						"          {_col3_} as string,",
+						"          {_col4_} as string,",
+						"          {_col5_} as string,",
+						"          {_col6_} as string",
+						"     ),",
+						"     useSchema: false,",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'delimited',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'ensayos/ljimenez/3.Union',",
+						"     fileName: 'DataSetMovie2.csv',",
+						"     columnDelimiter: ',',",
+						"     escapeChar: '\\\\',",
+						"     quoteChar: '\\\"',",
+						"     columnNamesAsHeader: false) ~> sourceMovie2",
+						"source(output(",
+						"          year as string,",
+						"          date_published as string,",
+						"          genre as string,",
+						"          duration as string,",
+						"          country as string,",
+						"          imdb_title_id as string,",
+						"          title as string",
+						"     ),",
+						"     useSchema: false,",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'delimited',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'ensayos/ljimenez/3.Union',",
+						"     fileName: 'DataSetMovie3.csv',",
+						"     columnDelimiter: ',',",
+						"     escapeChar: '\\\\',",
+						"     quoteChar: '\\\"',",
+						"     columnNamesAsHeader: true) ~> sourceMovie3",
+						"sourceMovie1, sourceMovie2 union(byName: false)~> union1",
+						"union1, sourceMovie3 union(byName: true)~> union2",
+						"union2 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'delimited',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'ensayos/ljimenez/3.Union',",
+						"     columnDelimiter: ',',",
+						"     escapeChar: '\\\\',",
+						"     quoteChar: '\\\"',",
+						"     columnNamesAsHeader: true,",
+						"     partitionFileNames:['Movies Union'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> sinkMoviesUnios"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureDataLakeStorage1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/4-dataflow Lookup')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sourceClientes"
+						},
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sourceServicios"
+						}
+					],
+					"sinks": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sinkLookup"
+						}
+					],
+					"transformations": [
+						{
+							"name": "lookup1"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          CodCliente as short,",
+						"          Cliente as string,",
+						"          ApePatern as string,",
+						"          FechaNaci as string,",
+						"          DNI as integer,",
+						"          IdServicio as short",
+						"     ),",
+						"     useSchema: false,",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'delimited',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'ensayos/ljimenez/4.Lookup',",
+						"     fileName: 'Cliente.csv',",
+						"     columnDelimiter: ',',",
+						"     escapeChar: '\\\\',",
+						"     quoteChar: '\\\"',",
+						"     columnNamesAsHeader: true) ~> sourceClientes",
+						"source(output(",
+						"          IdServicio as short,",
+						"          Servicio as string,",
+						"          Fecha as date 'dd/MM/yyyy',",
+						"          MontoPagar as short",
+						"     ),",
+						"     useSchema: false,",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'delimited',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'ensayos/ljimenez/4.Lookup',",
+						"     fileName: 'Servicios.csv',",
+						"     columnDelimiter: ',',",
+						"     escapeChar: '\\\\',",
+						"     quoteChar: '\\\"',",
+						"     columnNamesAsHeader: true) ~> sourceServicios",
+						"sourceClientes, sourceServicios lookup(sourceClientes@IdServicio == sourceServicios@IdServicio,",
+						"     multiple: false,",
+						"     pickup: 'any',",
+						"     broadcast: 'auto')~> lookup1",
+						"lookup1 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'delimited',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'ensayos/ljimenez/4.Lookup',",
+						"     columnDelimiter: ',',",
+						"     escapeChar: '\\\\',",
+						"     quoteChar: '\\\"',",
+						"     columnNamesAsHeader: true,",
+						"     partitionFileNames:['ClientesServicios.csv'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> sinkLookup"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureDataLakeStorage1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/5-dataflow Derived Column')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sourceFacturacion"
+						}
+					],
+					"sinks": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sinkFacturacion"
+						}
+					],
+					"transformations": [
+						{
+							"name": "derivedColumn1"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          {Nro# Factura} as string,",
+						"          Fecha as date,",
+						"          {Codigo Cliente} as short,",
+						"          {Codigo Producto} as short,",
+						"          Cantidad as short,",
+						"          Precio as double,",
+						"          Total as double,",
+						"          {Codigo Vendedor} as string,",
+						"          Zona as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'excel',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'ensayos/ljimenez/5.Derived Column',",
+						"     fileName: 'Facturacion.xlsx',",
+						"     sheetName: 'Hoja1',",
+						"     firstRowAsHeader: true) ~> sourceFacturacion",
+						"sourceFacturacion derive({CODIGO VENDEDOR} = lower({Codigo Vendedor}),",
+						"          {Total 2} = toDecimal(Cantidad * Precio),",
+						"          {Rank Vendedor} = iif({Codigo Vendedor}=='VE002', \"Es Exceclente\", \"Es Buen Vendedor\"),",
+						"          {Ven-Zon} = concat({Codigo Vendedor},'-', Zona)) ~> derivedColumn1",
+						"derivedColumn1 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'delimited',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'ensayos/ljimenez/5.Derived Column',",
+						"     columnDelimiter: ',',",
+						"     escapeChar: '\\\\',",
+						"     quoteChar: '\\\"',",
+						"     columnNamesAsHeader: true,",
+						"     partitionFileNames:['Derived Column.csv'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> sinkFacturacion"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureDataLakeStorage1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/6-dataflow Select')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sourceFacturacion"
+						}
+					],
+					"sinks": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sinkFacturacion"
+						}
+					],
+					"transformations": [
+						{
+							"name": "derivedColumn1"
+						},
+						{
+							"name": "select1"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          {Nro# Factura} as string,",
+						"          Fecha as date,",
+						"          {Codigo Cliente} as short,",
+						"          {Codigo Producto} as short,",
+						"          Cantidad as short,",
+						"          Precio as double,",
+						"          Total as double,",
+						"          {Codigo Vendedor} as string,",
+						"          Zona as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'excel',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'ensayos/ljimenez/5.Derived Column',",
+						"     fileName: 'Facturacion.xlsx',",
+						"     sheetName: 'Hoja1',",
+						"     firstRowAsHeader: true) ~> sourceFacturacion",
+						"sourceFacturacion derive({CODIGO VENDEDOR} = lower({Codigo Vendedor}),",
+						"          {Total 2} = toDecimal(Cantidad * Precio),",
+						"          {Rank Vendedor} = iif({Codigo Vendedor}=='VE002', \"Es Exceclente\", \"Es Mal Vendedor\"),",
+						"          {Ven-Zon} = concat({Codigo Vendedor},'-', Zona)) ~> derivedColumn1",
+						"derivedColumn1 select(mapColumn(",
+						"          nroFactura = {Nro# Factura},",
+						"          fecha = Fecha,",
+						"          IdCliente = {Codigo Cliente},",
+						"          IdProducto = {Codigo Producto},",
+						"          cantidad = Cantidad,",
+						"          precio = Precio,",
+						"          {Total 2},",
+						"          {Codigo Vendedor} = sourceFacturacion@{Codigo Vendedor},",
+						"          Zona,",
+						"          Idvendedor = derivedColumn1@{CODIGO VENDEDOR},",
+						"          {Ven-Zon}",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> select1",
+						"select1 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'delimited',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'ensayos/ljimenez/6-Select',",
+						"     columnDelimiter: ',',",
+						"     escapeChar: '\\\\',",
+						"     quoteChar: '\\\"',",
+						"     columnNamesAsHeader: true,",
+						"     partitionFileNames:['Select.csv'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> sinkFacturacion"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureDataLakeStorage1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/7-dataflow Aggregate')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sourceProductos"
+						}
+					],
+					"sinks": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sinkAggregate"
+						}
+					],
+					"transformations": [
+						{
+							"name": "aggregate1"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          IdProducto as short,",
+						"          NombreProducto as string,",
+						"          Proveedor as string,",
+						"          {Categoría} as string,",
+						"          CantidadPorUnidad as string,",
+						"          PrecioUnidad as double,",
+						"          UnidadesEnExistencia as short,",
+						"          UnidadesEnPedido as short,",
+						"          NivelNuevoPedido as short,",
+						"          Suspendido as boolean",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'excel',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'ensayos/ljimenez/7.Aggregate',",
+						"     fileName: 'Productos.xlsx',",
+						"     sheetName: 'Listado de Productos',",
+						"     firstRowAsHeader: true) ~> sourceProductos",
+						"sourceProductos aggregate(groupBy({Categoría}),",
+						"     Suma = sum(PrecioUnidad),",
+						"          Maximo = max(PrecioUnidad),",
+						"          Minimo = min(PrecioUnidad),",
+						"          Promedio = toDecimal(avg(PrecioUnidad)),",
+						"          Conteo = count(PrecioUnidad)) ~> aggregate1",
+						"aggregate1 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'delimited',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'ensayos/ljimenez/7.Aggregate',",
+						"     columnDelimiter: ',',",
+						"     escapeChar: '\\\\',",
+						"     quoteChar: '\\\"',",
+						"     columnNamesAsHeader: true,",
+						"     partitionFileNames:['Estadisticas Categorias.csv'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> sinkAggregate"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureDataLakeStorage1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/8-dataflow Surrogate Key')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sourceFacturacion"
+						}
+					],
+					"sinks": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sinkFacturacion"
+						}
+					],
+					"transformations": [
+						{
+							"name": "derivedColumn1"
+						},
+						{
+							"name": "select1"
+						},
+						{
+							"name": "surrogateKey1"
+						},
+						{
+							"name": "select2"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          {Nro# Factura} as string,",
+						"          Fecha as date,",
+						"          {Codigo Cliente} as short,",
+						"          {Codigo Producto} as short,",
+						"          Cantidad as short,",
+						"          Precio as double,",
+						"          Total as double,",
+						"          {Codigo Vendedor} as string,",
+						"          Zona as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'excel',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'ensayos/ljimenez/5.Derived Column',",
+						"     fileName: 'Facturacion.xlsx',",
+						"     sheetName: 'Hoja1',",
+						"     firstRowAsHeader: true) ~> sourceFacturacion",
+						"sourceFacturacion derive({CODIGO VENDEDOR} = lower({Codigo Vendedor}),",
+						"          {Total 2} = toDecimal(Cantidad * Precio),",
+						"          {Rank Vendedor} = iif({Codigo Vendedor}=='VE002', \"Es Exceclente\", \"Es Mal Vendedor\"),",
+						"          {Ven-Zon} = concat({Codigo Vendedor},'-', Zona)) ~> derivedColumn1",
+						"derivedColumn1 select(mapColumn(",
+						"          nroFactura = {Nro# Factura},",
+						"          fecha = Fecha,",
+						"          IdCliente = {Codigo Cliente},",
+						"          IdProducto = {Codigo Producto},",
+						"          cantidad = Cantidad,",
+						"          precio = Precio,",
+						"          {Total 2},",
+						"          {Codigo Vendedor} = sourceFacturacion@{Codigo Vendedor},",
+						"          Zona,",
+						"          Idvendedor = derivedColumn1@{CODIGO VENDEDOR},",
+						"          {Ven-Zon}",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> select1",
+						"select1 keyGenerate(output(IDFacturacion as long),",
+						"     startAt: 1L,",
+						"     stepValue: 1L) ~> surrogateKey1",
+						"surrogateKey1 select(mapColumn(",
+						"          IDFacturacion,",
+						"          nroFactura,",
+						"          fecha,",
+						"          IdCliente,",
+						"          IdProducto,",
+						"          cantidad,",
+						"          precio,",
+						"          {Total 2},",
+						"          {Codigo Vendedor},",
+						"          Zona,",
+						"          Idvendedor,",
+						"          {Ven-Zon}",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> select2",
+						"select2 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'delimited',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'ensayos/ljimenez/8-SurrogateKey',",
+						"     columnDelimiter: ',',",
+						"     escapeChar: '\\\\',",
+						"     quoteChar: '\\\"',",
+						"     columnNamesAsHeader: true,",
+						"     partitionFileNames:['SurrogateKey.csv'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> sinkFacturacion"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureDataLakeStorage1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/9-Pivot')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sourceVentas"
+						}
+					],
+					"sinks": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sinkPivot"
+						}
+					],
+					"transformations": [
+						{
+							"name": "pivot1"
+						},
+						{
+							"name": "filter1"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          Empresas as string,",
+						"          Frutas as string,",
+						"          Cliente as string,",
+						"          {Cantidad (Kg)} as short,",
+						"          {Año} as short,",
+						"          Pais as string,",
+						"          {Precio(kg)} as short",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'excel',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'ensayos/ljimenez/9.Pivot',",
+						"     fileName: 'DataExportacionEstructurado.xlsx',",
+						"     sheetName: 'Data',",
+						"     firstRowAsHeader: true) ~> sourceVentas",
+						"sourceVentas pivot(groupBy(Empresas,",
+						"          Frutas,",
+						"          Cliente,",
+						"          {Cantidad (Kg)},",
+						"          {Año}),",
+						"     pivotBy(Pais),",
+						"     {} = sum({Precio(kg)}),",
+						"     columnNaming: 'VENTAS$N-$V(Kg)',",
+						"     lateral: true) ~> pivot1",
+						"pivot1 filter(Frutas=='Uva') ~> filter1",
+						"filter1 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'delimited',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'ensayos/ljimenez/9.Pivot',",
+						"     columnDelimiter: ',',",
+						"     escapeChar: '\\\\',",
+						"     quoteChar: '\\\"',",
+						"     columnNamesAsHeader: true,",
+						"     partitionFileNames:['Pivot.csv'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> sinkPivot"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureDataLakeStorage1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/dataflow1')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sourceClientes"
+						},
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sourceProductos"
+						},
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sourceFacturacion"
+						}
+					],
+					"sinks": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sinkClientes"
+						},
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sinkProductos"
+						},
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sinkFacturacion"
+						}
+					],
+					"transformations": [
+						{
+							"name": "derivedColumn1"
+						},
+						{
+							"name": "select1"
+						},
+						{
+							"name": "select2"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          {ID Cliente} as short,",
+						"          Apellido as string,",
+						"          Nombre as string,",
+						"          {Nombre y Apellido} as string",
+						"     ),",
+						"     useSchema: false,",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'delimited',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'bronce',",
+						"     fileName: 'Clientes.csv',",
+						"     columnDelimiter: ';',",
+						"     escapeChar: '\\\\',",
+						"     quoteChar: '\\\"',",
+						"     columnNamesAsHeader: true) ~> sourceClientes",
+						"source(output(",
+						"          IdProducto as short,",
+						"          NombreProducto as string,",
+						"          Proveedor as string,",
+						"          {Categoría} as string,",
+						"          CantidadPorUnidad as string,",
+						"          PrecioUnidad as string,",
+						"          UnidadesEnExistencia as short,",
+						"          UnidadesEnPedido as short,",
+						"          NivelNuevoPedido as short,",
+						"          Suspendido as string",
+						"     ),",
+						"     useSchema: false,",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'delimited',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'bronce',",
+						"     fileName: 'Productos.csv',",
+						"     columnDelimiter: ';',",
+						"     escapeChar: '\\\\',",
+						"     quoteChar: '\\\"',",
+						"     columnNamesAsHeader: true) ~> sourceProductos",
+						"source(output(",
+						"          {Nro# Factura} as string,",
+						"          Fecha as date,",
+						"          {Codigo Cliente} as short,",
+						"          {Codigo Producto} as short,",
+						"          Cantidad as short,",
+						"          Precio as double,",
+						"          Total as double,",
+						"          {Codigo Vendedor} as string,",
+						"          Zona as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'excel',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'bronce',",
+						"     fileName: 'Facturacion.xlsx',",
+						"     sheetName: 'Hoja1',",
+						"     firstRowAsHeader: true) ~> sourceFacturacion",
+						"sourceClientes derive(IdCliente = {ID Cliente}) ~> derivedColumn1",
+						"derivedColumn1 select(mapColumn(",
+						"          IdCliente,",
+						"          Nombre,",
+						"          Apellido,",
+						"          NombreApellido = {Nombre y Apellido}",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> select1",
+						"sourceFacturacion select(mapColumn(",
+						"          NroFactura = {Nro# Factura},",
+						"          Fecha,",
+						"          CodigoCliente = {Codigo Cliente},",
+						"          CodigoProducto = {Codigo Producto},",
+						"          Cantidad,",
+						"          Precio,",
+						"          Total,",
+						"          CodigoVendedor = {Codigo Vendedor},",
+						"          Zona",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> select2",
+						"select1 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'parquet',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'plata',",
+						"     compressionCodec: 'snappy',",
+						"     partitionFileNames:['Clientes'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> sinkClientes",
+						"sourceProductos sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'parquet',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'plata',",
+						"     compressionCodec: 'snappy',",
+						"     partitionFileNames:['Productos.parquet'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> sinkProductos",
+						"select2 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'delta',",
+						"     compressionType: 'snappy',",
+						"     compressionLevel: 'Fastest',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'plata',",
+						"     overwrite: true,",
+						"     mergeSchema: false,",
+						"     autoCompact: false,",
+						"     optimizedWrite: false,",
+						"     vacuum: 0,",
+						"     deletable: false,",
+						"     insertable: true,",
+						"     updateable: false,",
+						"     upsertable: false,",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> sinkFacturacion"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureDataLakeStorage1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/dataflow2')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "source1"
+						},
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "source2"
+						},
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "source3"
+						}
+					],
+					"sinks": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sinkVentasCategoria"
+						}
+					],
+					"transformations": [
+						{
+							"name": "join1"
+						},
+						{
+							"name": "join2"
+						},
+						{
+							"name": "aggregate1"
+						},
+						{
+							"name": "aggregate2"
+						},
+						{
+							"name": "select1"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          IdCliente as short,",
+						"          Nombre as string,",
+						"          Apellido as string,",
+						"          NombreApellido as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'parquet',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'plata',",
+						"     fileName: 'Clientes') ~> source1",
+						"source(output(",
+						"          IdProducto as short,",
+						"          NombreProducto as string,",
+						"          Proveedor as string,",
+						"          {Categoría} as string,",
+						"          CantidadPorUnidad as string,",
+						"          PrecioUnidad as string,",
+						"          UnidadesEnExistencia as short,",
+						"          UnidadesEnPedido as short,",
+						"          NivelNuevoPedido as short,",
+						"          Suspendido as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'parquet',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'plata',",
+						"     fileName: 'Productos.parquet') ~> source2",
+						"source(output(",
+						"          NroFactura as string,",
+						"          Fecha as date,",
+						"          CodigoCliente as short,",
+						"          CodigoProducto as short,",
+						"          Cantidad as short,",
+						"          Precio as double,",
+						"          Total as double,",
+						"          CodigoVendedor as string,",
+						"          Zona as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: true,",
+						"     format: 'delta',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'plata') ~> source3",
+						"source3, source1 join(CodigoCliente == IdCliente,",
+						"     joinType:'left',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> join1",
+						"join1, source2 join(CodigoProducto == IdProducto,",
+						"     joinType:'left',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> join2",
+						"join2 aggregate(groupBy(NombreApellido),",
+						"     {Total Ventas por Clientes} = round(sum(Total),3)) ~> aggregate1",
+						"join2 aggregate(groupBy({Categoría}),",
+						"     {Total Ventas por Categorias} = toDecimal(sum(Total))) ~> aggregate2",
+						"aggregate2 select(mapColumn(",
+						"          {Categoría},",
+						"          TotalVentasCategorias = {Total Ventas por Categorias}",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> select1",
+						"select1 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'parquet',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'oro/categorias',",
+						"     partitionFileNames:['VentasCategoria.parquet'],",
+						"     umask: 0666,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     mapColumn(",
+						"          {Categoría},",
+						"          TotalVentasCategorias",
+						"     ),",
+						"     partitionBy('hash', 1)) ~> sinkVentasCategoria"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureDataLakeStorage1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/df-bronce-a-plata')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"folder": {
+					"name": "ETL"
+				},
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sourceClientes"
+						},
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sourceProductos"
+						},
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sourceFacturacion"
+						}
+					],
+					"sinks": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sinkClientes"
+						},
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sinkProductos"
+						},
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sinkFacturacion"
+						}
+					],
+					"transformations": [
+						{
+							"name": "select1"
+						},
+						{
+							"name": "select2"
+						},
+						{
+							"name": "select3"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          {ID Cliente} as short,",
+						"          Apellido as string,",
+						"          Nombre as string,",
+						"          {Nombre y Apellido} as string",
+						"     ),",
+						"     useSchema: false,",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'delimited',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'bronce',",
+						"     fileName: 'Clientes.csv',",
+						"     columnDelimiter: ';',",
+						"     escapeChar: '\\\\',",
+						"     quoteChar: '\\\"',",
+						"     columnNamesAsHeader: true) ~> sourceClientes",
+						"source(output(",
+						"          IdProducto as short,",
+						"          NombreProducto as string,",
+						"          Proveedor as string,",
+						"          {Categoría} as string,",
+						"          CantidadPorUnidad as string,",
+						"          PrecioUnidad as short,",
+						"          UnidadesEnExistencia as short,",
+						"          UnidadesEnPedido as short,",
+						"          NivelNuevoPedido as short,",
+						"          Suspendido as string",
+						"     ),",
+						"     useSchema: false,",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'delimited',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'bronce',",
+						"     fileName: 'Productos.csv',",
+						"     columnDelimiter: ';',",
+						"     escapeChar: '\\\\',",
+						"     quoteChar: '\\\"',",
+						"     columnNamesAsHeader: true) ~> sourceProductos",
+						"source(output(",
+						"          {Nro# Factura} as string,",
+						"          Fecha as date,",
+						"          {Codigo Cliente} as short,",
+						"          {Codigo Producto} as short,",
+						"          Cantidad as short,",
+						"          Precio as double,",
+						"          Total as double,",
+						"          {Codigo Vendedor} as string,",
+						"          Zona as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'excel',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'bronce',",
+						"     fileName: 'Facturacion.xlsx',",
+						"     sheetName: 'Hoja1',",
+						"     firstRowAsHeader: true) ~> sourceFacturacion",
+						"sourceClientes select(mapColumn(",
+						"          IdCliente = {ID Cliente},",
+						"          Nombre,",
+						"          Apellido,",
+						"          NombreApellido = {Nombre y Apellido}",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> select1",
+						"sourceProductos select(mapColumn(",
+						"          IdProducto,",
+						"          NombreProducto,",
+						"          Proveedor,",
+						"          {Categoría},",
+						"          CantidadPorUnidad,",
+						"          PrecioUnidad,",
+						"          UnidadesEnExistencia,",
+						"          UnidadesEnPedido,",
+						"          NivelNuevoPedido",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> select2",
+						"sourceFacturacion select(mapColumn(",
+						"          NroFactura = {Nro# Factura},",
+						"          Fecha,",
+						"          CodigoCliente = {Codigo Cliente},",
+						"          CodigoProducto = {Codigo Producto},",
+						"          Cantidad,",
+						"          Precio,",
+						"          Total,",
+						"          CodigoVendedor = {Codigo Vendedor},",
+						"          Zona",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> select3",
+						"select1 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'parquet',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'plata/clientes',",
+						"     compressionCodec: 'snappy',",
+						"     partitionFileNames:['clientes.parquet'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> sinkClientes",
+						"select2 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'parquet',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'plata/productos',",
+						"     compressionCodec: 'snappy',",
+						"     partitionFileNames:['productos.parquet'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> sinkProductos",
+						"select3 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'parquet',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'plata/facturacion',",
+						"     compressionCodec: 'snappy',",
+						"     partitionFileNames:['facturacion.parquet'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> sinkFacturacion"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureDataLakeStorage1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/df-plata-a-oro')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"folder": {
+					"name": "ETL"
+				},
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sourceCliente"
+						},
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sourceProductos"
+						},
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sourceFacturacion"
+						}
+					],
+					"sinks": [
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sinkVentasCat"
+						},
+						{
+							"linkedService": {
+								"referenceName": "AzureDataLakeStorage1",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sinkVentasClient"
+						}
+					],
+					"transformations": [
+						{
+							"name": "join1"
+						},
+						{
+							"name": "aggregate1"
+						},
+						{
+							"name": "join2"
+						},
+						{
+							"name": "aggregate2"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          IdCliente as short,",
+						"          Nombre as string,",
+						"          Apellido as string,",
+						"          NombreApellido as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'parquet',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'plata/clientes',",
+						"     fileName: 'clientes.parquet') ~> sourceCliente",
+						"source(output(",
+						"          IdProducto as short,",
+						"          NombreProducto as string,",
+						"          Proveedor as string,",
+						"          {Categoría} as string,",
+						"          CantidadPorUnidad as string,",
+						"          PrecioUnidad as short,",
+						"          UnidadesEnExistencia as short,",
+						"          UnidadesEnPedido as short,",
+						"          NivelNuevoPedido as short",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'parquet',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'plata/productos',",
+						"     fileName: 'productos.parquet') ~> sourceProductos",
+						"source(output(",
+						"          NroFactura as string,",
+						"          Fecha as date,",
+						"          CodigoCliente as short,",
+						"          CodigoProducto as short,",
+						"          Cantidad as short,",
+						"          Precio as double,",
+						"          Total as double,",
+						"          CodigoVendedor as string,",
+						"          Zona as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'parquet',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'plata/facturacion',",
+						"     fileName: 'facturacion.parquet') ~> sourceFacturacion",
+						"sourceFacturacion, sourceCliente join(CodigoCliente == IdCliente,",
+						"     joinType:'left',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> join1",
+						"join1 aggregate(groupBy(NombreApellido),",
+						"     TotalVentas = toDecimal(sum(Total))) ~> aggregate1",
+						"sourceFacturacion, sourceProductos join(CodigoProducto == IdProducto,",
+						"     joinType:'left',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> join2",
+						"join2 aggregate(groupBy({Categoría}),",
+						"     TotalVentasCategoria = toDecimal(sum(Total))) ~> aggregate2",
+						"aggregate2 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'parquet',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'oro/ventas_categoria',",
+						"     compressionCodec: 'snappy',",
+						"     partitionFileNames:['VentasCategorias.parquet'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> sinkVentasCat",
+						"aggregate1 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'parquet',",
+						"     fileSystem: 'dldatabits',",
+						"     folderPath: 'oro/ventas_cliente',",
+						"     compressionCodec: 'snappy',",
+						"     partitionFileNames:['VentasClientes.parquet'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> sinkVentasClient"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureDataLakeStorage1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/1-Data Flow Join')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "innerJoin",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "1-dataflow Joins",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"sourceProducto": {},
+									"sourceCategorias": {},
+									"sinkInnerJoin": {},
+									"sinkLeftJoin": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "2.Actividad Data Flow"
+				},
+				"annotations": [],
+				"lastPublishTime": "2023-04-18T21:15:07Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/1-dataflow Joins')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/2-Data Flow Exits')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Data flow Exits",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "2-dataflow Exits",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"sourceClientes": {},
+									"sourceServicios": {},
+									"sinkExits": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "2.Actividad Data Flow"
+				},
+				"annotations": [],
+				"lastPublishTime": "2023-04-18T21:15:06Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/2-dataflow Exits')]"
+			]
+		}
+	]
+}
