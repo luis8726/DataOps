@@ -2,11 +2,14 @@
 	"name": "powerquery3",
 	"properties": {
 		"type": "WranglingDataFlow",
+		"folder": {
+			"name": "PowerQ"
+		},
 		"typeProperties": {
 			"sources": [
 				{
 					"name": "cars",
-					"script": "source(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~>  cars",
+					"script": "source(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> cars",
 					"dataset": {
 						"referenceName": "cars",
 						"type": "DatasetReference"
