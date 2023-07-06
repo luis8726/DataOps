@@ -1,0 +1,76 @@
+{
+	"name": "7-dataflow Aggregate",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sourceProductos"
+				}
+			],
+			"sinks": [
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sinkAggregate"
+				}
+			],
+			"transformations": [
+				{
+					"name": "aggregate1"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          IdProducto as short,",
+				"          NombreProducto as string,",
+				"          Proveedor as string,",
+				"          {Categoría} as string,",
+				"          CantidadPorUnidad as string,",
+				"          PrecioUnidad as double,",
+				"          UnidadesEnExistencia as short,",
+				"          UnidadesEnPedido as short,",
+				"          NivelNuevoPedido as short,",
+				"          Suspendido as boolean",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'excel',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'ensayos/ljimenez/7.Aggregate',",
+				"     fileName: 'Productos.xlsx',",
+				"     sheetName: 'Listado de Productos',",
+				"     firstRowAsHeader: true) ~> sourceProductos",
+				"sourceProductos aggregate(groupBy({Categoría}),",
+				"     Suma = sum(PrecioUnidad),",
+				"          Maximo = max(PrecioUnidad),",
+				"          Minimo = min(PrecioUnidad),",
+				"          Promedio = toDecimal(avg(PrecioUnidad)),",
+				"          Conteo = count(PrecioUnidad)) ~> aggregate1",
+				"aggregate1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'delimited',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'ensayos/ljimenez/7.Aggregate',",
+				"     columnDelimiter: ',',",
+				"     escapeChar: '\\\\',",
+				"     quoteChar: '\\\"',",
+				"     columnNamesAsHeader: true,",
+				"     partitionFileNames:['Estadisticas Categorias.csv'],",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('hash', 1)) ~> sinkAggregate"
+			]
+		}
+	}
+}

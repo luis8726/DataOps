@@ -1,0 +1,144 @@
+{
+	"name": "dataflow2",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "source1"
+				},
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "source2"
+				},
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "source3"
+				}
+			],
+			"sinks": [
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sinkVentasCategoria"
+				}
+			],
+			"transformations": [
+				{
+					"name": "join1"
+				},
+				{
+					"name": "join2"
+				},
+				{
+					"name": "aggregate1"
+				},
+				{
+					"name": "aggregate2"
+				},
+				{
+					"name": "select1"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          IdCliente as short,",
+				"          Nombre as string,",
+				"          Apellido as string,",
+				"          NombreApellido as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'parquet',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'plata',",
+				"     fileName: 'Clientes') ~> source1",
+				"source(output(",
+				"          IdProducto as short,",
+				"          NombreProducto as string,",
+				"          Proveedor as string,",
+				"          {Categoría} as string,",
+				"          CantidadPorUnidad as string,",
+				"          PrecioUnidad as string,",
+				"          UnidadesEnExistencia as short,",
+				"          UnidadesEnPedido as short,",
+				"          NivelNuevoPedido as short,",
+				"          Suspendido as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'parquet',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'plata',",
+				"     fileName: 'Productos.parquet') ~> source2",
+				"source(output(",
+				"          NroFactura as string,",
+				"          Fecha as date,",
+				"          CodigoCliente as short,",
+				"          CodigoProducto as short,",
+				"          Cantidad as short,",
+				"          Precio as double,",
+				"          Total as double,",
+				"          CodigoVendedor as string,",
+				"          Zona as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: true,",
+				"     format: 'delta',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'plata') ~> source3",
+				"source3, source1 join(CodigoCliente == IdCliente,",
+				"     joinType:'left',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> join1",
+				"join1, source2 join(CodigoProducto == IdProducto,",
+				"     joinType:'left',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> join2",
+				"join2 aggregate(groupBy(NombreApellido),",
+				"     {Total Ventas por Clientes} = round(sum(Total),3)) ~> aggregate1",
+				"join2 aggregate(groupBy({Categoría}),",
+				"     {Total Ventas por Categorias} = toDecimal(sum(Total))) ~> aggregate2",
+				"aggregate2 select(mapColumn(",
+				"          {Categoría},",
+				"          TotalVentasCategorias = {Total Ventas por Categorias}",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select1",
+				"select1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'oro/categorias',",
+				"     partitionFileNames:['VentasCategoria.parquet'],",
+				"     umask: 0666,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     mapColumn(",
+				"          {Categoría},",
+				"          TotalVentasCategorias",
+				"     ),",
+				"     partitionBy('hash', 1)) ~> sinkVentasCategoria"
+			]
+		}
+	}
+}

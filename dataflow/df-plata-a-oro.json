@@ -1,0 +1,155 @@
+{
+	"name": "df-plata-a-oro",
+	"properties": {
+		"folder": {
+			"name": "ETL"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sourceCliente"
+				},
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sourceProductos"
+				},
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sourceFacturacion"
+				}
+			],
+			"sinks": [
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sinkVentasCat"
+				},
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sinkVentasClient"
+				}
+			],
+			"transformations": [
+				{
+					"name": "join1"
+				},
+				{
+					"name": "aggregate1"
+				},
+				{
+					"name": "join2"
+				},
+				{
+					"name": "aggregate2"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          IdCliente as short,",
+				"          Nombre as string,",
+				"          Apellido as string,",
+				"          NombreApellido as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'parquet',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'plata/clientes',",
+				"     fileName: 'clientes.parquet') ~> sourceCliente",
+				"source(output(",
+				"          IdProducto as short,",
+				"          NombreProducto as string,",
+				"          Proveedor as string,",
+				"          {Categoría} as string,",
+				"          CantidadPorUnidad as string,",
+				"          PrecioUnidad as short,",
+				"          UnidadesEnExistencia as short,",
+				"          UnidadesEnPedido as short,",
+				"          NivelNuevoPedido as short",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'parquet',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'plata/productos',",
+				"     fileName: 'productos.parquet') ~> sourceProductos",
+				"source(output(",
+				"          NroFactura as string,",
+				"          Fecha as date,",
+				"          CodigoCliente as short,",
+				"          CodigoProducto as short,",
+				"          Cantidad as short,",
+				"          Precio as double,",
+				"          Total as double,",
+				"          CodigoVendedor as string,",
+				"          Zona as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'parquet',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'plata/facturacion',",
+				"     fileName: 'facturacion.parquet') ~> sourceFacturacion",
+				"sourceFacturacion, sourceCliente join(CodigoCliente == IdCliente,",
+				"     joinType:'left',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> join1",
+				"join1 aggregate(groupBy(NombreApellido),",
+				"     TotalVentas = toDecimal(sum(Total))) ~> aggregate1",
+				"sourceFacturacion, sourceProductos join(CodigoProducto == IdProducto,",
+				"     joinType:'left',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> join2",
+				"join2 aggregate(groupBy({Categoría}),",
+				"     TotalVentasCategoria = toDecimal(sum(Total))) ~> aggregate2",
+				"aggregate2 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'oro/ventas_categoria',",
+				"     compressionCodec: 'snappy',",
+				"     partitionFileNames:['VentasCategorias.parquet'],",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('hash', 1)) ~> sinkVentasCat",
+				"aggregate1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'oro/ventas_cliente',",
+				"     compressionCodec: 'snappy',",
+				"     partitionFileNames:['VentasClientes.parquet'],",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('hash', 1)) ~> sinkVentasClient"
+			]
+		}
+	}
+}

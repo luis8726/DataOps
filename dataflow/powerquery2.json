@@ -1,0 +1,20 @@
+{
+	"name": "powerquery2",
+	"properties": {
+		"type": "WranglingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"name": "cars",
+					"script": "source(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> cars",
+					"dataset": {
+						"referenceName": "cars",
+						"type": "DatasetReference"
+					}
+				}
+			],
+			"script": "section Section1;\r\nshared cars = let AdfDoc = AzureStorage.DataLakeContents(\"https://dldatabits.dfs.core.windows.net/dldatabits/bronce/cars.csv\"),Csv = Csv.Document(AdfDoc, [Delimiter = \",\", Encoding = TextEncoding.Utf8, QuoteStyle = QuoteStyle.Csv]) in Csv;\r\nshared UserQuery = let Source = #\"cars\" in Source;\r\n",
+			"documentLocale": "en-us"
+		}
+	}
+}

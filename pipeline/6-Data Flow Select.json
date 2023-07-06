@@ -1,0 +1,37 @@
+{
+	"name": "6-Data Flow Select",
+	"properties": {
+		"activities": [
+			{
+				"name": "Data flow Select",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "6-dataflow Select",
+						"type": "DataFlowReference"
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					},
+					"traceLevel": "Fine"
+				}
+			}
+		],
+		"folder": {
+			"name": "2.Actividad Data Flow"
+		},
+		"annotations": [],
+		"lastPublishTime": "2023-04-20T21:49:54Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

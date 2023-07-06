@@ -1,0 +1,73 @@
+{
+	"name": "5-dataflow Derived Column",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sourceFacturacion"
+				}
+			],
+			"sinks": [
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sinkFacturacion"
+				}
+			],
+			"transformations": [
+				{
+					"name": "derivedColumn1"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          {Nro# Factura} as string,",
+				"          Fecha as date,",
+				"          {Codigo Cliente} as short,",
+				"          {Codigo Producto} as short,",
+				"          Cantidad as short,",
+				"          Precio as double,",
+				"          Total as double,",
+				"          {Codigo Vendedor} as string,",
+				"          Zona as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'excel',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'ensayos/ljimenez/5.Derived Column',",
+				"     fileName: 'Facturacion.xlsx',",
+				"     sheetName: 'Hoja1',",
+				"     firstRowAsHeader: true) ~> sourceFacturacion",
+				"sourceFacturacion derive({CODIGO VENDEDOR} = lower({Codigo Vendedor}),",
+				"          {Total 2} = toDecimal(Cantidad * Precio),",
+				"          {Rank Vendedor} = iif({Codigo Vendedor}=='VE002', \"Es Exceclente\", \"Es Buen Vendedor\"),",
+				"          {Ven-Zon} = concat({Codigo Vendedor},'-', Zona)) ~> derivedColumn1",
+				"derivedColumn1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'delimited',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'ensayos/ljimenez/5.Derived Column',",
+				"     columnDelimiter: ',',",
+				"     escapeChar: '\\\\',",
+				"     quoteChar: '\\\"',",
+				"     columnNamesAsHeader: true,",
+				"     partitionFileNames:['Derived Column.csv'],",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('hash', 1)) ~> sinkFacturacion"
+			]
+		}
+	}
+}

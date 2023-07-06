@@ -1,0 +1,198 @@
+{
+	"name": "dataflow1",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sourceClientes"
+				},
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sourceProductos"
+				},
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sourceFacturacion"
+				}
+			],
+			"sinks": [
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sinkClientes"
+				},
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sinkProductos"
+				},
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sinkFacturacion"
+				}
+			],
+			"transformations": [
+				{
+					"name": "derivedColumn1"
+				},
+				{
+					"name": "select1"
+				},
+				{
+					"name": "select2"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          {ID Cliente} as short,",
+				"          Apellido as string,",
+				"          Nombre as string,",
+				"          {Nombre y Apellido} as string",
+				"     ),",
+				"     useSchema: false,",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'delimited',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'bronce',",
+				"     fileName: 'Clientes.csv',",
+				"     columnDelimiter: ';',",
+				"     escapeChar: '\\\\',",
+				"     quoteChar: '\\\"',",
+				"     columnNamesAsHeader: true) ~> sourceClientes",
+				"source(output(",
+				"          IdProducto as short,",
+				"          NombreProducto as string,",
+				"          Proveedor as string,",
+				"          {Categoría} as string,",
+				"          CantidadPorUnidad as string,",
+				"          PrecioUnidad as string,",
+				"          UnidadesEnExistencia as short,",
+				"          UnidadesEnPedido as short,",
+				"          NivelNuevoPedido as short,",
+				"          Suspendido as string",
+				"     ),",
+				"     useSchema: false,",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'delimited',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'bronce',",
+				"     fileName: 'Productos.csv',",
+				"     columnDelimiter: ';',",
+				"     escapeChar: '\\\\',",
+				"     quoteChar: '\\\"',",
+				"     columnNamesAsHeader: true) ~> sourceProductos",
+				"source(output(",
+				"          {Nro# Factura} as string,",
+				"          Fecha as date,",
+				"          {Codigo Cliente} as short,",
+				"          {Codigo Producto} as short,",
+				"          Cantidad as short,",
+				"          Precio as double,",
+				"          Total as double,",
+				"          {Codigo Vendedor} as string,",
+				"          Zona as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'excel',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'bronce',",
+				"     fileName: 'Facturacion.xlsx',",
+				"     sheetName: 'Hoja1',",
+				"     firstRowAsHeader: true) ~> sourceFacturacion",
+				"sourceClientes derive(IdCliente = {ID Cliente}) ~> derivedColumn1",
+				"derivedColumn1 select(mapColumn(",
+				"          IdCliente,",
+				"          Nombre,",
+				"          Apellido,",
+				"          NombreApellido = {Nombre y Apellido}",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select1",
+				"sourceFacturacion select(mapColumn(",
+				"          NroFactura = {Nro# Factura},",
+				"          Fecha,",
+				"          CodigoCliente = {Codigo Cliente},",
+				"          CodigoProducto = {Codigo Producto},",
+				"          Cantidad,",
+				"          Precio,",
+				"          Total,",
+				"          CodigoVendedor = {Codigo Vendedor},",
+				"          Zona",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select2",
+				"select1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'plata',",
+				"     compressionCodec: 'snappy',",
+				"     partitionFileNames:['Clientes'],",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('hash', 1)) ~> sinkClientes",
+				"sourceProductos sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'plata',",
+				"     compressionCodec: 'snappy',",
+				"     partitionFileNames:['Productos.parquet'],",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('hash', 1)) ~> sinkProductos",
+				"select2 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'delta',",
+				"     compressionType: 'snappy',",
+				"     compressionLevel: 'Fastest',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'plata',",
+				"     overwrite: true,",
+				"     mergeSchema: false,",
+				"     autoCompact: false,",
+				"     optimizedWrite: false,",
+				"     vacuum: 0,",
+				"     deletable: false,",
+				"     insertable: true,",
+				"     updateable: false,",
+				"     upsertable: false,",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> sinkFacturacion"
+			]
+		}
+	}
+}

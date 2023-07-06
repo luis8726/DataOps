@@ -1,0 +1,111 @@
+{
+	"name": "1-dataflow Joins",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sourceProducto"
+				},
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sourceCategorias"
+				}
+			],
+			"sinks": [
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sinkInnerJoin"
+				},
+				{
+					"name": "sinkLeftJoin"
+				}
+			],
+			"transformations": [
+				{
+					"name": "joinInner"
+				},
+				{
+					"name": "joinlef"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          ProductoId as short,",
+				"          NombreProducto as string,",
+				"          ProductoSubCategoriaId as short,",
+				"          Descripcion as string,",
+				"          Categoria as string,",
+				"          Color as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'excel',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'ensayos/ljimenez/Join',",
+				"     fileName: 'Producto.xlsx',",
+				"     sheetName: 'Producto',",
+				"     firstRowAsHeader: true) ~> sourceProducto",
+				"source(output(",
+				"          SubCategoriaProductoId as short,",
+				"          NombreSubCategoria as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'excel',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'ensayos/ljimenez/Join',",
+				"     fileName: 'SubCategoriaProducto.xlsx',",
+				"     sheetName: 'SubCategoriaProducto',",
+				"     firstRowAsHeader: true) ~> sourceCategorias",
+				"sourceProducto, sourceCategorias join(ProductoSubCategoriaId == SubCategoriaProductoId,",
+				"     joinType:'inner',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> joinInner",
+				"sourceProducto, sourceCategorias join(ProductoSubCategoriaId == SubCategoriaProductoId,",
+				"     joinType:'left',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> joinlef",
+				"joinInner sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'delimited',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'ensayos/ljimenez/Join',",
+				"     columnDelimiter: ',',",
+				"     escapeChar: '\\\\',",
+				"     quoteChar: '\\\"',",
+				"     columnNamesAsHeader: true,",
+				"     partitionFileNames:['inerJoin'],",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('hash', 1)) ~> sinkInnerJoin",
+				"joinlef sink(validateSchema: false,",
+				"     partitionFileNames:['Left Join'],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     store: 'cache',",
+				"     format: 'inline',",
+				"     output: false,",
+				"     saveOrder: 1,",
+				"     partitionBy('hash', 1)) ~> sinkLeftJoin"
+			]
+		}
+	}
+}

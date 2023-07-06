@@ -1,0 +1,9 @@
+{
+	"name": "adfdatabits",
+	"location": "eastus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "c21f6a52-beb0-4def-bddb-e25927d4d176",
+		"tenantId": "a83179e4-b110-4c81-a1ba-da8910095461"
+	}
+}

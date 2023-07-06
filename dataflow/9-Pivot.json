@@ -1,0 +1,80 @@
+{
+	"name": "9-Pivot",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sourceVentas"
+				}
+			],
+			"sinks": [
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sinkPivot"
+				}
+			],
+			"transformations": [
+				{
+					"name": "pivot1"
+				},
+				{
+					"name": "filter1"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          Empresas as string,",
+				"          Frutas as string,",
+				"          Cliente as string,",
+				"          {Cantidad (Kg)} as short,",
+				"          {Año} as short,",
+				"          Pais as string,",
+				"          {Precio(kg)} as short",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'excel',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'ensayos/ljimenez/9.Pivot',",
+				"     fileName: 'DataExportacionEstructurado.xlsx',",
+				"     sheetName: 'Data',",
+				"     firstRowAsHeader: true) ~> sourceVentas",
+				"sourceVentas pivot(groupBy(Empresas,",
+				"          Frutas,",
+				"          Cliente,",
+				"          {Cantidad (Kg)},",
+				"          {Año}),",
+				"     pivotBy(Pais),",
+				"     {} = sum({Precio(kg)}),",
+				"     columnNaming: 'VENTAS$N-$V(Kg)',",
+				"     lateral: true) ~> pivot1",
+				"pivot1 filter(Frutas=='Uva') ~> filter1",
+				"filter1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'delimited',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'ensayos/ljimenez/9.Pivot',",
+				"     columnDelimiter: ',',",
+				"     escapeChar: '\\\\',",
+				"     quoteChar: '\\\"',",
+				"     columnNamesAsHeader: true,",
+				"     partitionFileNames:['Pivot.csv'],",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('hash', 1)) ~> sinkPivot"
+			]
+		}
+	}
+}

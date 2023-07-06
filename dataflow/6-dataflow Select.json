@@ -1,0 +1,91 @@
+{
+	"name": "6-dataflow Select",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sourceFacturacion"
+				}
+			],
+			"sinks": [
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sinkFacturacion"
+				}
+			],
+			"transformations": [
+				{
+					"name": "derivedColumn1"
+				},
+				{
+					"name": "select1"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          {Nro# Factura} as string,",
+				"          Fecha as date,",
+				"          {Codigo Cliente} as short,",
+				"          {Codigo Producto} as short,",
+				"          Cantidad as short,",
+				"          Precio as double,",
+				"          Total as double,",
+				"          {Codigo Vendedor} as string,",
+				"          Zona as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'excel',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'ensayos/ljimenez/5.Derived Column',",
+				"     fileName: 'Facturacion.xlsx',",
+				"     sheetName: 'Hoja1',",
+				"     firstRowAsHeader: true) ~> sourceFacturacion",
+				"sourceFacturacion derive({CODIGO VENDEDOR} = lower({Codigo Vendedor}),",
+				"          {Total 2} = toDecimal(Cantidad * Precio),",
+				"          {Rank Vendedor} = iif({Codigo Vendedor}=='VE002', \"Es Exceclente\", \"Es Mal Vendedor\"),",
+				"          {Ven-Zon} = concat({Codigo Vendedor},'-', Zona)) ~> derivedColumn1",
+				"derivedColumn1 select(mapColumn(",
+				"          nroFactura = {Nro# Factura},",
+				"          fecha = Fecha,",
+				"          IdCliente = {Codigo Cliente},",
+				"          IdProducto = {Codigo Producto},",
+				"          cantidad = Cantidad,",
+				"          precio = Precio,",
+				"          {Total 2},",
+				"          {Codigo Vendedor} = sourceFacturacion@{Codigo Vendedor},",
+				"          Zona,",
+				"          Idvendedor = derivedColumn1@{CODIGO VENDEDOR},",
+				"          {Ven-Zon}",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select1",
+				"select1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'delimited',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'ensayos/ljimenez/6-Select',",
+				"     columnDelimiter: ',',",
+				"     escapeChar: '\\\\',",
+				"     quoteChar: '\\\"',",
+				"     columnNamesAsHeader: true,",
+				"     partitionFileNames:['Select.csv'],",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('hash', 1)) ~> sinkFacturacion"
+			]
+		}
+	}
+}

@@ -1,0 +1,205 @@
+{
+	"name": "df-bronce-a-plata",
+	"properties": {
+		"folder": {
+			"name": "ETL"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sourceClientes"
+				},
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sourceProductos"
+				},
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sourceFacturacion"
+				}
+			],
+			"sinks": [
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sinkClientes"
+				},
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sinkProductos"
+				},
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sinkFacturacion"
+				}
+			],
+			"transformations": [
+				{
+					"name": "select1"
+				},
+				{
+					"name": "select2"
+				},
+				{
+					"name": "select3"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          {ID Cliente} as short,",
+				"          Apellido as string,",
+				"          Nombre as string,",
+				"          {Nombre y Apellido} as string",
+				"     ),",
+				"     useSchema: false,",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'delimited',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'bronce',",
+				"     fileName: 'Clientes.csv',",
+				"     columnDelimiter: ';',",
+				"     escapeChar: '\\\\',",
+				"     quoteChar: '\\\"',",
+				"     columnNamesAsHeader: true) ~> sourceClientes",
+				"source(output(",
+				"          IdProducto as short,",
+				"          NombreProducto as string,",
+				"          Proveedor as string,",
+				"          {Categoría} as string,",
+				"          CantidadPorUnidad as string,",
+				"          PrecioUnidad as short,",
+				"          UnidadesEnExistencia as short,",
+				"          UnidadesEnPedido as short,",
+				"          NivelNuevoPedido as short,",
+				"          Suspendido as string",
+				"     ),",
+				"     useSchema: false,",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'delimited',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'bronce',",
+				"     fileName: 'Productos.csv',",
+				"     columnDelimiter: ';',",
+				"     escapeChar: '\\\\',",
+				"     quoteChar: '\\\"',",
+				"     columnNamesAsHeader: true) ~> sourceProductos",
+				"source(output(",
+				"          {Nro# Factura} as string,",
+				"          Fecha as date,",
+				"          {Codigo Cliente} as short,",
+				"          {Codigo Producto} as short,",
+				"          Cantidad as short,",
+				"          Precio as double,",
+				"          Total as double,",
+				"          {Codigo Vendedor} as string,",
+				"          Zona as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'excel',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'bronce',",
+				"     fileName: 'Facturacion.xlsx',",
+				"     sheetName: 'Hoja1',",
+				"     firstRowAsHeader: true) ~> sourceFacturacion",
+				"sourceClientes select(mapColumn(",
+				"          IdCliente = {ID Cliente},",
+				"          Nombre,",
+				"          Apellido,",
+				"          NombreApellido = {Nombre y Apellido}",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select1",
+				"sourceProductos select(mapColumn(",
+				"          IdProducto,",
+				"          NombreProducto,",
+				"          Proveedor,",
+				"          {Categoría},",
+				"          CantidadPorUnidad,",
+				"          PrecioUnidad,",
+				"          UnidadesEnExistencia,",
+				"          UnidadesEnPedido,",
+				"          NivelNuevoPedido",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select2",
+				"sourceFacturacion select(mapColumn(",
+				"          NroFactura = {Nro# Factura},",
+				"          Fecha,",
+				"          CodigoCliente = {Codigo Cliente},",
+				"          CodigoProducto = {Codigo Producto},",
+				"          Cantidad,",
+				"          Precio,",
+				"          Total,",
+				"          CodigoVendedor = {Codigo Vendedor},",
+				"          Zona",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select3",
+				"select1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'plata/clientes',",
+				"     compressionCodec: 'snappy',",
+				"     partitionFileNames:['clientes.parquet'],",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('hash', 1)) ~> sinkClientes",
+				"select2 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'plata/productos',",
+				"     compressionCodec: 'snappy',",
+				"     partitionFileNames:['productos.parquet'],",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('hash', 1)) ~> sinkProductos",
+				"select3 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     fileSystem: 'dldatabits',",
+				"     folderPath: 'plata/facturacion',",
+				"     compressionCodec: 'snappy',",
+				"     partitionFileNames:['facturacion.parquet'],",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('hash', 1)) ~> sinkFacturacion"
+			]
+		}
+	}
+}
